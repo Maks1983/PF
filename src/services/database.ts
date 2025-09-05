@@ -1,20 +1,10 @@
-// This file now acts as a bridge between the React frontend and server functions
-import { 
-  getAllLoans as serverGetAllLoans,
-  addLoan as serverAddLoan,
-  updateLoan as serverUpdateLoan,
-  deleteLoan as serverDeleteLoan,
-  initializeExampleData as serverInitializeExampleData
-} from '../../server/debtFunctions';
+// Temporary placeholder - will be replaced with API calls later
 import { Loan } from '../types';
 
 export const initializeDatabase = async (): Promise<void> => {
   try {
     console.log('Initializing database connection...');
-    
-    // Initialize example data if needed
-    await serverInitializeExampleData();
-    
+    // TODO: Replace with API call to initialize database
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Failed to initialize database:', error);
@@ -22,11 +12,26 @@ export const initializeDatabase = async (): Promise<void> => {
   }
 };
 
-// Re-export server functions for use in React components
-export const getAllLoans = serverGetAllLoans;
-export const addLoan = serverAddLoan;
-export const updateLoan = serverUpdateLoan;
-export const deleteLoan = serverDeleteLoan;
+// Temporary placeholder functions - will be replaced with API calls
+export const getAllLoans = async (): Promise<Loan[]> => {
+  // TODO: Replace with API call
+  return [];
+};
+
+export const addLoan = async (loan: Omit<Loan, 'id'>): Promise<Loan> => {
+  // TODO: Replace with API call
+  throw new Error('Not implemented - needs API endpoint');
+};
+
+export const updateLoan = async (id: string, updates: Partial<Loan>): Promise<void> => {
+  // TODO: Replace with API call
+  throw new Error('Not implemented - needs API endpoint');
+};
+
+export const deleteLoan = async (id: string): Promise<void> => {
+  // TODO: Replace with API call
+  throw new Error('Not implemented - needs API endpoint');
+};
 
 // Legacy functions for compatibility (these are no longer needed but kept for smooth transition)
 export class DebtManagementDB {
@@ -36,6 +41,6 @@ export class DebtManagementDB {
 export const db = null; // No longer needed
 
 export const createExampleData = async (): Promise<void> => {
-  // This is now handled by serverInitializeExampleData
-  await serverInitializeExampleData();
+  // TODO: Replace with API call to create example data
+  console.log('Example data creation not implemented yet');
 };
