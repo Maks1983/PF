@@ -1,12 +1,10 @@
-// Server initialization file
+// server/index.ts
 import dotenv from 'dotenv';
-
-// Load environment variables
 dotenv.config();
 
-// Initialize database connection
 import dbConnection from './dbConnection.js';
 
+// Function to initialize the server
 export const initializeServer = async (): Promise<void> => {
   try {
     console.log('Initializing server...');
@@ -18,11 +16,13 @@ export const initializeServer = async (): Promise<void> => {
   }
 };
 
-// Export all server functions for easy access
+// Export server functions for easy access
 export * from './debtFunctions.js';
+
+// Run initialization immediately when starting this file
 initializeServer()
-  .then(() => console.log("Database ready"))
-  .catch(err => {
-    console.error("Startup error:", err);
+  .then(() => console.log('Database ready and tables verified'))
+  .catch((err) => {
+    console.error('Startup error:', err);
     process.exit(1);
   });
