@@ -45,7 +45,7 @@ class DatabaseConnection {
         password: config.password,
         database: config.database,
         connectionLimit: config.connectionLimit,
-        acquireTimeout: config.acquireTimeout,
+        //acquireTimeout: config.acquireTimeout,
         timeout: config.timeout,
         bigIntAsNumber: true,
         insertIdAsNumber: true,
