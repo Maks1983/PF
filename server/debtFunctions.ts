@@ -1,5 +1,5 @@
-import dbConnection, { ensureDbInitialized } from './dbConnection';
-import { Loan } from '../src/types';
+import dbConnection, { ensureDbInitialized } from './dbConnection.js';
+import { Loan } from '../src/types/index.js';
 
 // Ensure database is initialized before any operations
 const initializeIfNeeded = async () => {
