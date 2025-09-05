@@ -20,3 +20,9 @@ export const initializeServer = async (): Promise<void> => {
 
 // Export all server functions for easy access
 export * from './debtFunctions.js';
+initializeServer()
+  .then(() => console.log("Database ready"))
+  .catch(err => {
+    console.error("Startup error:", err);
+    process.exit(1);
+  });
