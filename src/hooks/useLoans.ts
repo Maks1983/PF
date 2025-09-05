@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Loan } from '../types';
-import { getAllLoans, addLoan as dbAddLoan, updateLoan as dbUpdateLoan, deleteLoan as dbDeleteLoan } from '../services/database';
+import { 
+  getAllLoans, 
+  addLoan as dbAddLoan, 
+  updateLoan as dbUpdateLoan, 
+  deleteLoan as dbDeleteLoan 
+} from '../services/database';
 
 export const useLoans = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
