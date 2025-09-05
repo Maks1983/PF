@@ -35,3 +35,6 @@ initializeServer().then(() => {
       </div>
     </StrictMode>
   );
+
+}
+)
