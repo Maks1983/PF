@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Initialize database connection
-import dbConnection from './dbConnection';
+import dbConnection from './dbConnection.js';
 
 export const initializeServer = async (): Promise<void> => {
   try {
@@ -19,4 +19,4 @@ export const initializeServer = async (): Promise<void> => {
 };
 
 // Export all server functions for easy access
-export * from './debtFunctions';
+export * from './debtFunctions.js';
