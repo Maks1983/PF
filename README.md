@@ -13,7 +13,7 @@ A comprehensive debt management application built with React and TypeScript, des
 ## Quick Deployment (Debian Container)
 
 ### Prerequisites
-- Debian 11/12 container or VM
+- Debian 11/12 container or VM  
 - Root access
 - MariaDB server accessible at `10.150.50.7:3306`
 
@@ -25,11 +25,10 @@ chmod +x deploy.sh && ./deploy.sh
 ```
 
 This script will:
-- Install Node.js 20.x, PM2, TypeScript, and all dependencies
-- Build backend to backend/dist and frontend to frontend/dist
-- Set up PM2 process management with systemd service
-- Configure daily backups with 7-day retention
-- Create monitoring, update, and HTTP server scripts
+- Install Node.js 20.x and all dependencies
+- Set up the application with systemd service
+- Configure daily backups  
+- Start the application service
 
 ### Manual Configuration
 
@@ -54,38 +53,30 @@ systemctl restart personal-finance
 
 Once deployed, you have two options to access your application:
 
-**Option 1: Backend API Service**
-- PM2-managed Node.js backend runs automatically via systemd
-- Backend API available on port 3000
+**Option 1: Node.js Service (Recommended)**
+- The systemd service runs automatically
+- Access via your application's configured port
 
-**Option 2: Frontend HTTP Server**
+**Option 2: Simple HTTP Server**
 ```bash
 /opt/personal-finance/serve.sh
-# Access frontend at http://YOUR_SERVER_IP:8080
+# Then access at http://YOUR_SERVER_IP:8080
 ```
 
 ## Management Commands
 
 ```bash
-# Monitor application status (backend, PM2, logs)
+# Monitor application status
 /opt/personal-finance/monitor.sh
 
-# Update application (backend + frontend)
+# Update application
 /opt/personal-finance/update.sh
 
-# View backend service logs
+# View application logs
 journalctl -u personal-finance -f
 
-# PM2 process management
-pm2 status
-pm2 logs
-pm2 restart personal-finance-backend
-
-# Restart backend service
+# Restart services
 systemctl restart personal-finance
-
-# Start frontend HTTP server
-/opt/personal-finance/serve.sh
 ```
 
 ## Development
@@ -101,37 +92,22 @@ npm run dev
 
 # Build for production
 npm run build
-
-# Build backend only
-npm run build:server
 ```
 
 ### Project Structure
 
 ```
-├── src/                    # React frontend source
+├── src/                    # React frontend
 │   ├── components/         # React components
 │   ├── hooks/             # Custom React hooks
 │   ├── services/          # Frontend services
 │   └── utils/             # Utility functions
-├── server/                # Node.js backend source
+├── server/                # Node.js backend (future use)
 │   ├── dbConnection.ts    # Database connection
 │   └── debtFunctions.ts   # Debt-related functions
-├── backend/dist/          # Built backend (TypeScript → JavaScript)
-├── frontend/dist/         # Built frontend (React/Vite)
-├── ecosystem.config.js    # PM2 configuration
 ├── deploy.sh              # Deployment script
 └── README.md
 ```
-
-## Process Management
-
-The application uses PM2 for robust process management:
-
-- **Auto-restart** on crashes
-- **Memory monitoring** with restart at 1GB
-- **Log management** with timestamps
-- **Systemd integration** for system startup
 
 ## Database Schema
 
@@ -145,9 +121,8 @@ The application uses MariaDB with the following tables:
 ## Security Features
 
 - Daily automated backups
-- PM2 process management with systemd integration
+- Systemd service management
 - Environment variable protection
-- Separate backend/frontend builds
 
 ## Backup and Recovery
 
@@ -170,35 +145,25 @@ systemctl restart personal-finance
 ### Check Service Status
 ```bash
 systemctl status personal-finance
-pm2 status
 ```
 
 ### View Logs
 ```bash
-# Backend service logs
+# Application logs
 journalctl -u personal-finance -n 50
-
-# PM2 application logs
-pm2 logs personal-finance-backend
 ```
 
 ### Common Issues
 
-1. **Backend Database Connection Failed**
+1. **Database Connection Failed**
    - Verify database credentials in `.env`
    - Check network connectivity to `10.150.50.7:3306`
    - Ensure MariaDB user has proper permissions
 
-2. **Backend Won't Start**
+2. **Application Won't Start**
    - Check Node.js version: `node --version` (should be 20.x)
    - Verify all dependencies: `npm install`
-   - Check PM2 status: `pm2 status`
-   - Check service logs: `journalctl -u personal-finance -f`
-
-3. **Frontend Not Accessible**
-   - Ensure serve.sh is running: `/opt/personal-finance/serve.sh`
-   - Check if port 8080 is accessible
-   - Verify frontend build exists: `ls /opt/personal-finance/frontend/dist/`
+   - Check application logs: `journalctl -u personal-finance -f`
 
 ## Future Phases
 
