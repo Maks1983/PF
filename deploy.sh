@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # Personal Finance Manager - Debian Container Deployment Script
-# Simple deployment without Nginx or firewall
+# Focused deployment without Nginx or firewall
 
 set -e  # Exit on any error
-
-echo "🚀 Starting Personal Finance Manager deployment..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,6 +36,8 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+print_status "🚀 Starting Personal Finance Manager deployment..."
+
 # Update system packages
 print_status "Updating system packages..."
 apt update && apt upgrade -y
@@ -57,7 +57,8 @@ apt install -y \
     unzip \
     vim \
     htop \
-    net-tools
+    net-tools \
+    python3
 
 # Install Node.js 20.x (LTS)
 print_status "Installing Node.js 20.x..."
@@ -81,6 +82,10 @@ if ! command -v pm2 &> /dev/null; then
 else
     print_warning "PM2 already installed: $(pm2 --version)"
 fi
+
+# Install TypeScript globally
+print_status "Installing TypeScript..."
+npm install -g typescript
 
 # Create application directory
 APP_DIR="/opt/personal-finance"
@@ -107,11 +112,46 @@ fi
 print_status "Installing Node.js dependencies..."
 npm install
 
-# Build the application
-print_status "Building the application..."
-npm run build
+# Build the backend
+print_status "Building backend..."
+mkdir -p backend/dist
+npm run build:server
 
-# Create systemd service for the application
+# Build the frontend
+print_status "Building frontend..."
+mkdir -p frontend/dist
+npm run build
+# Copy frontend build to frontend/dist
+cp -r dist/* frontend/dist/
+
+# Create PM2 ecosystem file
+print_status "Creating PM2 ecosystem configuration..."
+tee ecosystem.config.js > /dev/null <<'EOF'
+module.exports = {
+  apps: [{
+    name: 'personal-finance-backend',
+    script: './backend/dist/server/index.js',
+    cwd: '/opt/personal-finance',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    error_file: '/var/log/personal-finance/error.log',
+    out_file: '/var/log/personal-finance/out.log',
+    log_file: '/var/log/personal-finance/combined.log',
+    time: true
+  }]
+};
+EOF
+
+# Create log directory
+mkdir -p /var/log/personal-finance
+
+# Create systemd service for PM2
 print_status "Creating systemd service..."
 tee /etc/systemd/system/personal-finance.service > /dev/null <<EOF
 [Unit]
@@ -119,11 +159,13 @@ Description=Personal Finance Manager
 After=network.target
 
 [Service]
-Type=simple
+Type=forking
 User=root
 WorkingDirectory=$APP_DIR
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node server/index.js
+ExecStart=/usr/bin/pm2 start ecosystem.config.js --no-daemon
+ExecReload=/usr/bin/pm2 reload ecosystem.config.js
+ExecStop=/usr/bin/pm2 stop ecosystem.config.js
 Restart=always
 RestartSec=10
 
@@ -185,8 +227,12 @@ fi
 # Install/update dependencies
 npm install
 
-# Build application
+# Build backend
+npm run build:server
+
+# Build frontend
 npm run build
+cp -r dist/* frontend/dist/
 
 # Restart services
 systemctl restart personal-finance
@@ -212,11 +258,15 @@ echo "Disk Usage: $(df -h / | awk 'NR==2{printf "%s", $5}')"
 echo ""
 
 echo "🔧 Services Status:"
-echo "Personal Finance App: $(systemctl is-active personal-finance)"
+echo "Personal Finance Backend: $(systemctl is-active personal-finance)"
+echo ""
+
+echo "📈 PM2 Status:"
+pm2 status
 echo ""
 
 echo "🌐 Network:"
-echo "Application listening on port 3000"
+echo "Backend listening on port 3000"
 echo ""
 
 echo "📝 Recent logs (last 10 lines):"
@@ -225,38 +275,38 @@ EOF
 
 chmod +x $APP_DIR/monitor.sh
 
-# Create simple HTTP server script for direct access
-print_status "Creating HTTP server script..."
+# Create simple HTTP server script for frontend
+print_status "Creating frontend HTTP server script..."
 tee $APP_DIR/serve.sh > /dev/null <<'EOF'
 #!/bin/bash
-# Simple HTTP server for direct access
+# Simple HTTP server for frontend access
 
 APP_DIR="/opt/personal-finance"
-cd $APP_DIR/dist
+cd $APP_DIR/frontend/dist
 
-echo "🌐 Starting HTTP server on port 8080..."
-echo "Access your application at: http://localhost:8080"
+# Get server IP
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
+echo "🌐 Starting frontend HTTP server on port 8080..."
+echo "Access your application at: http://$SERVER_IP:8080"
 echo "Press Ctrl+C to stop"
 
-python3 -m http.server 8080
+python3 -m http.server 8080 --bind 0.0.0.0
 EOF
 
 chmod +x $APP_DIR/serve.sh
-
-# Install Python3 for simple HTTP server option
-print_status "Installing Python3 for HTTP server option..."
-apt install -y python3
 
 # Final status check
 print_status "Performing final status check..."
 sleep 5
 
 # Check services
-APP_STATUS=$(systemctl is-active personal-finance)
+BACKEND_STATUS=$(systemctl is-active personal-finance)
 
 print_success "=== Deployment Summary ==="
 print_success "Application directory: $APP_DIR"
-print_success "Application service status: $APP_STATUS"
+print_success "Backend service status: $BACKEND_STATUS"
+print_success "PM2 process manager: $(pm2 --version)"
 print_success "Daily backups scheduled"
 print_success ""
 
@@ -264,16 +314,19 @@ print_success ""
 SERVER_IP=$(hostname -I | awk '{print $1}')
 print_success "🎉 Deployment completed successfully!"
 print_success ""
-print_success "Access your application:"
-print_success "  Option 1: Run the Node.js service (systemctl start personal-finance)"
-print_success "  Option 2: Simple HTTP server: $APP_DIR/serve.sh (port 8080)"
+print_success "Backend API:"
+print_success "  Service: systemctl start/stop/restart personal-finance"
+print_success "  Logs: journalctl -u personal-finance -f"
+print_success "  PM2: pm2 status, pm2 logs"
 print_success ""
-print_success "Useful commands:"
-print_success "  Monitor status: $APP_DIR/monitor.sh"
-print_success "  Update app: $APP_DIR/update.sh"
-print_success "  View logs: journalctl -u personal-finance -f"
-print_success "  Restart app: systemctl restart personal-finance"
-print_success "  Simple server: $APP_DIR/serve.sh"
+print_success "Frontend Access:"
+print_success "  HTTP Server: $APP_DIR/serve.sh"
+print_success "  URL: http://$SERVER_IP:8080"
+print_success ""
+print_success "Management:"
+print_success "  Monitor: $APP_DIR/monitor.sh"
+print_success "  Update: $APP_DIR/update.sh"
+print_success "  Backup: /usr/local/bin/backup-personal-finance.sh"
 print_success ""
 
 if [ ! -f .env ]; then
@@ -282,7 +335,9 @@ if [ ! -f .env ]; then
     print_warning "   Then restart: systemctl restart personal-finance"
 fi
 
-print_success "🔒 Security features:"
-print_success "  - Daily automated backups"
-print_success "  - Systemd service management"
-print_success "  - Environment variable protection"
+print_success "🔒 Features included:"
+print_success "  - PM2 process management with auto-restart"
+print_success "  - Systemd service integration"
+print_success "  - Daily automated backups (7-day retention)"
+print_success "  - Monitoring and update scripts"
+print_success "  - Separate backend/frontend builds"
