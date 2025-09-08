@@ -17,7 +17,7 @@ class DatabaseConnection {
 
   private getConfig(): DatabaseConfig {
     return {
-      host: process.env.DB_HOST || '10.150.50.7',
+      host: process.env.DB_HOST || 'maria.alfcent.com',
       port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER || 'dev',
       password: process.env.DB_PASSWORD || 'devpassword',
