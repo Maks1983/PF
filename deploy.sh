@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Personal Finance Manager - Debian Container Deployment Script
-# This script sets up everything needed to run the application
+# Simple deployment without Nginx or firewall
 
 set -e  # Exit on any error
 
@@ -32,19 +32,19 @@ print_error() {
 }
 
 # Check if running as root
-if [[ $EUID -eq 0 ]]; then
-   print_error "This script should not be run as root for security reasons"
-   print_status "Please run as a regular user with sudo privileges"
+if [[ $EUID -ne 0 ]]; then
+   print_error "This script must be run as root in Debian containers"
+   print_status "Please run: su - root, then execute this script"
    exit 1
 fi
 
 # Update system packages
 print_status "Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+apt update && apt upgrade -y
 
 # Install required system dependencies
 print_status "Installing system dependencies..."
-sudo apt install -y \
+apt install -y \
     curl \
     wget \
     git \
@@ -57,15 +57,13 @@ sudo apt install -y \
     unzip \
     vim \
     htop \
-    net-tools \
-    ufw \
-    fail2ban
+    net-tools
 
 # Install Node.js 20.x (LTS)
 print_status "Installing Node.js 20.x..."
 if ! command -v node &> /dev/null; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt install -y nodejs
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt install -y nodejs
 else
     print_warning "Node.js already installed: $(node --version)"
 fi
@@ -79,9 +77,7 @@ print_success "npm version: $NPM_VERSION"
 # Install PM2 globally for process management
 print_status "Installing PM2 process manager..."
 if ! command -v pm2 &> /dev/null; then
-    sudo npm install -g pm2
-    # Setup PM2 to start on boot
-    sudo pm2 startup systemd -u $USER --hp $HOME
+    npm install -g pm2
 else
     print_warning "PM2 already installed: $(pm2 --version)"
 fi
@@ -89,8 +85,7 @@ fi
 # Create application directory
 APP_DIR="/opt/personal-finance"
 print_status "Creating application directory: $APP_DIR"
-sudo mkdir -p $APP_DIR
-sudo chown $USER:$USER $APP_DIR
+mkdir -p $APP_DIR
 
 # Copy application files
 print_status "Copying application files..."
@@ -116,90 +111,16 @@ npm install
 print_status "Building the application..."
 npm run build
 
-# Install and configure Nginx
-print_status "Installing and configuring Nginx..."
-sudo apt install -y nginx
-
-# Create Nginx configuration
-sudo tee /etc/nginx/sites-available/personal-finance > /dev/null <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    
-    server_name _;
-    root $APP_DIR/dist;
-    index index.html;
-    
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
-    
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/javascript;
-    
-    # Handle client-side routing
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-    
-    # Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # Security: Hide sensitive files
-    location ~ /\. {
-        deny all;
-    }
-    
-    location ~ \.(env|log)$ {
-        deny all;
-    }
-}
-EOF
-
-# Enable the site
-sudo ln -sf /etc/nginx/sites-available/personal-finance /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# Test Nginx configuration
-print_status "Testing Nginx configuration..."
-sudo nginx -t
-
-# Start and enable Nginx
-sudo systemctl start nginx
-sudo systemctl enable nginx
-
-# Configure firewall
-print_status "Configuring firewall..."
-sudo ufw --force enable
-sudo ufw allow ssh
-sudo ufw allow 'Nginx Full'
-sudo ufw allow 3306  # MariaDB port (if database is on same server)
-
-# Configure fail2ban
-print_status "Configuring fail2ban..."
-sudo systemctl start fail2ban
-sudo systemctl enable fail2ban
-
-# Create systemd service for the application (if needed for server-side functions)
+# Create systemd service for the application
 print_status "Creating systemd service..."
-sudo tee /etc/systemd/system/personal-finance.service > /dev/null <<EOF
+tee /etc/systemd/system/personal-finance.service > /dev/null <<EOF
 [Unit]
 Description=Personal Finance Manager
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=root
 WorkingDirectory=$APP_DIR
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/node server/index.js
@@ -211,13 +132,13 @@ WantedBy=multi-user.target
 EOF
 
 # Reload systemd and start service
-sudo systemctl daemon-reload
-sudo systemctl enable personal-finance
-sudo systemctl start personal-finance
+systemctl daemon-reload
+systemctl enable personal-finance
+systemctl start personal-finance
 
 # Create backup script
 print_status "Creating backup script..."
-sudo tee /usr/local/bin/backup-personal-finance.sh > /dev/null <<'EOF'
+tee /usr/local/bin/backup-personal-finance.sh > /dev/null <<'EOF'
 #!/bin/bash
 # Personal Finance Manager Backup Script
 
@@ -237,7 +158,7 @@ find $BACKUP_DIR -name "app_backup_*.tar.gz" -mtime +7 -delete
 echo "Backup completed: $BACKUP_DIR/app_backup_$DATE.tar.gz"
 EOF
 
-sudo chmod +x /usr/local/bin/backup-personal-finance.sh
+chmod +x /usr/local/bin/backup-personal-finance.sh
 
 # Create daily backup cron job
 print_status "Setting up daily backups..."
@@ -268,8 +189,7 @@ npm install
 npm run build
 
 # Restart services
-sudo systemctl restart personal-finance
-sudo systemctl reload nginx
+systemctl restart personal-finance
 
 echo "✅ Update completed successfully!"
 EOF
@@ -292,35 +212,51 @@ echo "Disk Usage: $(df -h / | awk 'NR==2{printf "%s", $5}')"
 echo ""
 
 echo "🔧 Services Status:"
-echo "Nginx: $(systemctl is-active nginx)"
 echo "Personal Finance App: $(systemctl is-active personal-finance)"
-echo "Fail2ban: $(systemctl is-active fail2ban)"
 echo ""
 
 echo "🌐 Network:"
-echo "Nginx processes: $(pgrep nginx | wc -l)"
-echo "Active connections: $(ss -tuln | grep :80 | wc -l)"
+echo "Application listening on port 3000"
 echo ""
 
 echo "📝 Recent logs (last 10 lines):"
-sudo journalctl -u personal-finance -n 10 --no-pager
+journalctl -u personal-finance -n 10 --no-pager
 EOF
 
 chmod +x $APP_DIR/monitor.sh
+
+# Create simple HTTP server script for direct access
+print_status "Creating HTTP server script..."
+tee $APP_DIR/serve.sh > /dev/null <<'EOF'
+#!/bin/bash
+# Simple HTTP server for direct access
+
+APP_DIR="/opt/personal-finance"
+cd $APP_DIR/dist
+
+echo "🌐 Starting HTTP server on port 8080..."
+echo "Access your application at: http://localhost:8080"
+echo "Press Ctrl+C to stop"
+
+python3 -m http.server 8080
+EOF
+
+chmod +x $APP_DIR/serve.sh
+
+# Install Python3 for simple HTTP server option
+print_status "Installing Python3 for HTTP server option..."
+apt install -y python3
 
 # Final status check
 print_status "Performing final status check..."
 sleep 5
 
 # Check services
-NGINX_STATUS=$(systemctl is-active nginx)
 APP_STATUS=$(systemctl is-active personal-finance)
 
 print_success "=== Deployment Summary ==="
 print_success "Application directory: $APP_DIR"
-print_success "Nginx status: $NGINX_STATUS"
 print_success "Application service status: $APP_STATUS"
-print_success "Firewall configured and enabled"
 print_success "Daily backups scheduled"
 print_success ""
 
@@ -328,26 +264,25 @@ print_success ""
 SERVER_IP=$(hostname -I | awk '{print $1}')
 print_success "🎉 Deployment completed successfully!"
 print_success ""
-print_success "Access your application at:"
-print_success "  http://$SERVER_IP"
-print_success "  http://localhost (if accessing locally)"
+print_success "Access your application:"
+print_success "  Option 1: Run the Node.js service (systemctl start personal-finance)"
+print_success "  Option 2: Simple HTTP server: $APP_DIR/serve.sh (port 8080)"
 print_success ""
 print_success "Useful commands:"
 print_success "  Monitor status: $APP_DIR/monitor.sh"
 print_success "  Update app: $APP_DIR/update.sh"
-print_success "  View logs: sudo journalctl -u personal-finance -f"
-print_success "  Restart app: sudo systemctl restart personal-finance"
-print_success "  Restart nginx: sudo systemctl restart nginx"
+print_success "  View logs: journalctl -u personal-finance -f"
+print_success "  Restart app: systemctl restart personal-finance"
+print_success "  Simple server: $APP_DIR/serve.sh"
 print_success ""
 
 if [ ! -f .env ]; then
     print_warning "⚠️  Don't forget to configure your .env file with database credentials!"
     print_warning "   Edit: $APP_DIR/.env"
-    print_warning "   Then restart: sudo systemctl restart personal-finance"
+    print_warning "   Then restart: systemctl restart personal-finance"
 fi
 
-print_success "🔒 Security features enabled:"
-print_success "  - UFW firewall configured"
-print_success "  - Fail2ban intrusion prevention"
-print_success "  - Nginx security headers"
+print_success "🔒 Security features:"
 print_success "  - Daily automated backups"
+print_success "  - Systemd service management"
+print_success "  - Environment variable protection"
