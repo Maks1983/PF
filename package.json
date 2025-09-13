@@ -6,26 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:server": "tsc -p tsconfig.server.json",
-    "start": "node backend/dist/server/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "dexie": "^4.2.0",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
+    "dexie": "^4.0.11",
     "lucide-react": "^0.344.0",
-    "mariadb": "^3.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^3.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
-    "@types/express": "^5.0.3",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

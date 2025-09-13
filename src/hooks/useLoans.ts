@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loan } from '../types';
-import { 
-  getAllLoans, 
-  addLoan as dbAddLoan, 
-  updateLoan as dbUpdateLoan, 
-  deleteLoan as dbDeleteLoan 
-} from '../services/database';
+import { db } from '../services/database';
 
 export const useLoans = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -15,7 +10,7 @@ export const useLoans = () => {
   const fetchLoans = async () => {
     try {
       setLoading(true);
-      const allLoans = await getAllLoans();
+      const allLoans = await db.loans.toArray();
       setLoans(allLoans);
       setError(null);
     } catch (err) {
@@ -30,7 +25,7 @@ export const useLoans = () => {
     try {
       const id = `loan-${Date.now()}`;
       const newLoan = { ...loan, id };
-      await dbAddLoan(newLoan);
+      await db.loans.add(newLoan);
       await fetchLoans();
       return newLoan;
     } catch (err) {
@@ -42,7 +37,7 @@ export const useLoans = () => {
 
   const updateLoan = async (id: string, updates: Partial<Loan>) => {
     try {
-      await dbUpdateLoan(id, updates);
+      await db.loans.update(id, updates);
       await fetchLoans();
     } catch (err) {
       setError('Failed to update loan');
@@ -53,7 +48,7 @@ export const useLoans = () => {
 
   const deleteLoan = async (id: string) => {
     try {
-      await dbDeleteLoan(id);
+      await db.loans.delete(id);
       await fetchLoans();
     } catch (err) {
       setError('Failed to delete loan');
